@@ -17,9 +17,52 @@ namespace tstconsole
         static void Main(string[] args)
         {
             Console.WriteLine(getfltnumber("5").ToString());
+            Console.WriteLine(GetResponse("4").Result);
             Console.ReadKey();
         }
 
+        private static async Task<int> GetResponse(string flt_number)
+        {
+            string TARGETURL = "https://agfaviobookpusher.azurewebsites.net/Api/Flights/" + flt_number;
+            string result = "";
+            int i2r = 0;
+            try
+            {
+                using (var request = new HttpRequestMessage(HttpMethod.Get, new Uri(TARGETURL)))
+                {
+                    request.Headers.TryAddWithoutValidation("Accept", "text/html,application/xhtml+xml,application/xml");
+                    //request.Headers.TryAddWithoutValidation("Accept-Encoding", "gzip, deflate");
+                    //request.Headers.TryAddWithoutValidation("User-Agent", "Mozilla/5.0 (Windows NT 6.2; WOW64; rv:19.0) Gecko/20100101 Firefox/19.0");
+                    //request.Headers.TryAddWithoutValidation("Accept-Charset", "ISO-8859-1");
+                    HttpClientHandler handler = new HttpClientHandler { Credentials = new NetworkCredential("userName", "Password") };
+
+                    using (var client = new HttpClient(handler))
+                    {
+                        using (var response = await client.SendAsync(request).ConfigureAwait(false))
+                        {
+                            response.EnsureSuccessStatusCode();
+                            using (var responseStream = await response.Content.ReadAsStreamAsync().ConfigureAwait(false))
+                            //using (var decompressedStream = new GZipStream(responseStream, CompressionMode.Decompress))
+                            using (var streamReader = new StreamReader(responseStream))
+                            {
+                                //return await streamReader.ReadToEndAsync().ConfigureAwait(false);
+                                result = await streamReader.ReadToEndAsync().ConfigureAwait(false);
+                            }
+                        }
+                    }
+                }
+                i2r = getintfromjson(result, false);
+            }
+            catch(Exception e)
+            {
+                i2r = -6;
+                Console.WriteLine(e.Message);
+            }
+
+            
+            return i2r;
+        }
+        
         static int getfltnumber(string flt_number)
         {
             string TARGETURL = "https://agfaviobookpusher.azurewebsites.net/Api/Flights/" + flt_number;
@@ -93,8 +136,7 @@ namespace tstconsole
                 }
                 else
                 {
-                    string json = "";
-                    Rootobject obj = JsonConvert.DeserializeObject<Rootobject>(json);
+                    Rootobject obj = JsonConvert.DeserializeObject<Rootobject>(result);
                     i2r = obj.Flight;
                 }
             }
